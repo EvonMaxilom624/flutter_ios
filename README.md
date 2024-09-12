@@ -1,2 +1,2 @@
-# flutter_ios
+# USTP-IOS repository
 USTP Integration Organization System 
