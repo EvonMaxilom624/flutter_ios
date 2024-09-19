@@ -14,8 +14,8 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _auth = AuthService();
-  final _dbService = DatabaseService();
+  final AuthService _auth = AuthService(); // Create AuthService instance
+  final DatabaseService _dbService = DatabaseService();
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
@@ -71,8 +71,12 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 30),
               CustomButton(
                 label: "Signup",
-                onPressed: (){
-                  if (_name.text.isEmpty || _email.text.isEmpty || _phone.text.isEmpty) {
+                onPressed: () async {
+                  if (_name.text.isEmpty ||
+                      _email.text.isEmpty ||
+                      _phone.text.isEmpty ||
+                      _password.text.isEmpty) {
+                    // Show error if any field is empty
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -86,17 +90,35 @@ class _SignupScreenState extends State<SignupScreen> {
                         ],
                       ),
                     );
-                    return; // Stop execution if fields are empty
+                    return;
                   }
 
-                  final user = AppUser(
-                    name: _name.text,
-                    email: _email.text,
-                    phone: _phone.text,
-                    userLevel: "general_user",
-                  );
-                  _dbService.create(user);
-                  _signup();
+                  try {
+                    // 1. Create user with Firebase Auth
+                    await _auth.createUserWithEmailAndPassword(
+                      _email.text,
+                      _password.text,
+                    );
+
+                    // 2. Get the UID of the newly created user
+                    String? uid = _auth.currentUser!.uid;
+
+                    // 3. Create user document in Firestore
+                    final user = AppUser(
+                      uid: uid, // Add UID to the AppUser
+                      name: _name.text,
+                      email: _email.text,
+                      phone: _phone.text,
+                      userLevel: "general_user",
+                    );
+
+                    await _dbService.create(user); // Use your _dbService to save data
+                    // After successful signup, navigate back
+                    Navigator.pop(context);
+                                    } catch (e) {
+                    debugPrint("Signup failed: $e");
+                    // Handle signup errors, perhaps show a user-friendly message
+                  }
                 },
               ),
 
@@ -106,7 +128,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 InkWell(
                   onTap: () => goToLogin(context),
                   child:
-                      const Text("Login", style: TextStyle(color: Colors.red)),
+                  const Text("Login", style: TextStyle(color: Colors.red)),
                 )
               ]),
               const Spacer()
@@ -118,32 +140,28 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   goToLogin(BuildContext context) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+    context,
+    MaterialPageRoute(builder: (context) => const LoginScreen()),
+  );
 
-  _signup() async {
-    await _auth.createUserWithEmailAndPassword(
-      _email.text,
-      _password.text,
-    );
-    Navigator.pop(context);
-  }
 }
 
 class AppUser {
+  final String uid; // Add the UID here
   final String name;
   final String email;
   final String phone;
   final String userLevel;
 
   AppUser(
-      {required this.name,
+      {required this.uid, // Required in the constructor
+        required this.name,
         required this.email,
         required this.phone,
         required this.userLevel});
 
   Map<String, dynamic> toMap() => {
+    'uid': uid, // Make sure to include the UID in the map
     'name': name,
     'email': email,
     'phone': phone,

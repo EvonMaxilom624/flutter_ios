@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/sidebar/sidebar_general.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
-
+//TODO check google ai studio to update this page
 class GeneralUserProfilePage extends StatefulWidget {
   const GeneralUserProfilePage({super.key});
 
@@ -17,51 +19,43 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
   String? _selectedProgram;
   String? _selectedYearLevel;
 
-  final Map<String, List<String>> _collegePrograms = {
-    'College of Engineering and Technology': [
-      'Bachelor of Science in Information Technology',
-      'Bachelor of Science in Hospitality Management',
-      'Bachelor of Science in Agricultural and Biosystems Engineering',
-      'Bachelor of Science in Environmental Engineering',
-      'Bachelor of Food Processing and Technology'
-    ],
-    'College of Agriculture': [
-      'STC-Dairy',
-      'Bachelor of Technology and Livelihood Education',
-      'DAT-BAT',
-      'Bachelor of Science in Agriculture'
-    ],
-    'College of Arts and Sciences': [
-      'Bachelor of Science in Social Work'
-    ],
-  };
+  // One flag to rule them all
+  bool _isEditingProfile = false;
 
-  final List<String> _yearLevels = [
-    '1st Year',
-    '2nd Year',
-    '3rd Year',
-    '4th Year',
-  ];
+  List<String> _programList = [];
 
-  void _editName() async {
-    final name = await _showEditDialog("Edit Name", _name);
-    if (name != null && name.isNotEmpty) {
+  @override
+  void initState() {
+    super.initState();
+    _fetchPrograms();
+  }
+
+  // Fetch programs from Firebase Firestore
+  Future<void> _fetchPrograms() async {
+    try {
+      QuerySnapshot querySnapshot =
+      await FirebaseFirestore.instance.collection('degree_programs').get();
+      List<String> programs =
+      querySnapshot.docs.map((doc) => doc['name'] as String).toList();
+
       setState(() {
-        _name = name;
+        _programList = programs;
       });
+    } catch (e) {
+      debugPrint("Error fetching programs: $e");
     }
   }
 
-  void _addDescription() async {
-    final description = await _showEditDialog("Add Description", "");
-    if (description != null && description.isNotEmpty) {
-      setState(() {
-        _descriptions.add(description);
-      });
-    }
+  // Function to toggle the editing state for the entire profile
+  void _toggleEditProfile() {
+    setState(() {
+      _isEditingProfile = !_isEditingProfile;
+    });
   }
 
-  Future<String?> _showEditDialog(String title, String initialText) async {
+  // Common function to show the dialog for editing text fields
+  Future<String?> _showEditDialog(
+      String title, String initialText) async {
     TextEditingController controller = TextEditingController(text: initialText);
     return showDialog<String>(
       context: context,
@@ -92,10 +86,10 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
   }
 
   void _uploadPhoto() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const UploadPhotoPage()),
-    );
+    // TODO: Implement photo upload functionality here
+    if (kDebugMode) {
+      print('Upload Photo button pressed!');
+    }
   }
 
   @override
@@ -117,8 +111,8 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
                     children: <Widget>[
                       const CircleAvatar(
                         radius: 70,
-                        backgroundImage: AssetImage(
-                            'assets/profile_placeholder.png'), // TODO Replace with your image asset or network image
+                        backgroundImage:
+                        AssetImage('assets/profile_placeholder.png'),
                       ),
                       Positioned(
                         bottom: 0,
@@ -133,6 +127,8 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 16.0),
+
+                // Name Display and Edit (now controlled by _isEditingProfile)
                 Row(
                   children: <Widget>[
                     Text(
@@ -140,13 +136,26 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
                       style: const TextStyle(fontSize: 24.0),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: _editName,
+                      icon: Icon(_isEditingProfile ? Icons.close : Icons.edit),
+                      onPressed: () async {
+                        if (_isEditingProfile) {
+                          final name = await _showEditDialog("Edit Name", _name);
+                          if (name != null && name.isNotEmpty) {
+                            setState(() {
+                              _name = name;
+                            });
+                          }
+                        }
+                        _toggleEditProfile(); // Toggle edit mode for all fields
+                      },
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 10.0),
                 const Divider(),
+
+                // Descriptions Section (Add/Edit controlled by _isEditingProfile)
                 const Text(
                   "Descriptions",
                   style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
@@ -156,69 +165,135 @@ class _GeneralUserProfilePageState extends State<GeneralUserProfilePage> {
                   child: Text(description),
                 )),
                 const SizedBox(height: 16.0),
+
+                // Add Description Button (only enabled when in edit mode)
                 ElevatedButton(
-                  onPressed: _addDescription,
+                  onPressed: _isEditingProfile
+                      ? () async {
+                    final description =
+                    await _showEditDialog("Add Description", "");
+                    if (description != null && description.isNotEmpty) {
+                      setState(() {
+                        _descriptions.add(description);
+                      });
+                    }
+                  }
+                      : null,
                   child: const Text("Add Description"),
                 ),
+
                 const Divider(),
+
+                // Courses Section
                 const Text(
                   "Courses",
                   style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
                 ),
+
+                // College Dropdown (enabled/disabled based on _isEditingProfile)
                 DropdownButtonFormField<String>(
                   value: _selectedCollege,
                   hint: const Text('Select College'),
-                  items: _collegePrograms.keys.map((String college) {
+                  items: _programList.map((String program) {
                     return DropdownMenuItem<String>(
-                      value: college,
-                      child: Text(college),
+                      value: program,
+                      child: Text(program),
                     );
                   }).toList(),
-                  onChanged: (newValue) {
+                  onChanged: _isEditingProfile
+                      ? (newValue) {
                     setState(() {
                       _selectedCollege = newValue;
-                      _selectedProgram = null;
+                      _selectedProgram =
+                      null; // Reset program when college changes
                     });
-                  },
+                  }
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'College',
                   ),
                 ),
+                const SizedBox(height: 16.0),
+
+                // Program Dropdown (similarly controlled)
                 if (_selectedCollege != null)
                   DropdownButtonFormField<String>(
                     value: _selectedProgram,
                     hint: const Text('Select Program'),
-                    items: _collegePrograms[_selectedCollege!]!.map((String program) {
+                    items: _programList.map((String program) {
                       return DropdownMenuItem<String>(
                         value: program,
                         child: Text(program),
                       );
                     }).toList(),
-                    onChanged: (newValue) {
+                    onChanged: _isEditingProfile
+                        ? (newValue) {
                       setState(() {
                         _selectedProgram = newValue;
                       });
-                    },
+                    }
+                        : null,
                     decoration: const InputDecoration(
                       labelText: 'Program',
                     ),
                   ),
+                const SizedBox(height: 16.0),
+
+                // Year Level Dropdown (controlled by _isEditingProfile)
                 DropdownButtonFormField<String>(
                   value: _selectedYearLevel,
                   hint: const Text('Select Year Level'),
-                  items: _yearLevels.map((String year) {
-                    return DropdownMenuItem<String>(
-                      value: year,
-                      child: Text(year),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
+                  items: const [
+                    DropdownMenuItem(value: '1st Year', child: Text('1st Year')),
+                    DropdownMenuItem(value: '2nd Year', child: Text('2nd Year')),
+                    DropdownMenuItem(value: '3rd Year', child: Text('3rd Year')),
+                    DropdownMenuItem(value: '4th Year', child: Text('4th Year')),
+                  ],
+                  onChanged: _isEditingProfile
+                      ? (newValue) {
                     setState(() {
                       _selectedYearLevel = newValue;
                     });
-                  },
+                  }
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'Year Level',
+                  ),
+                ),
+
+                const SizedBox(height: 32.0),
+
+                // Save Changes Button (always enabled; handles save logic)
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // TODO: Implement data saving logic here - send data to backend
+                      //  (e.g., Firebase).
+                      //  This function will be called when the "Save Changes"
+                      //  button is pressed, whether or not _isEditingProfile is true.
+
+                      if (kDebugMode) {
+                        print('Saving user data...');
+                      }
+                      if (kDebugMode) {
+                        print('Name: $_name');
+                      }
+                      if (kDebugMode) {
+                        print('Descriptions: $_descriptions');
+                      }
+                      if (kDebugMode) {
+                        print('College: $_selectedCollege');
+                      }
+                      if (kDebugMode) {
+                        print('Program: $_selectedProgram');
+                      }
+                      if (kDebugMode) {
+                        print('Year Level: $_selectedYearLevel');
+                      }
+
+                      _toggleEditProfile(); // Automatically exit edit mode after saving
+                    },
+                    child: const Text("Save Changes"),
                   ),
                 ),
               ],
