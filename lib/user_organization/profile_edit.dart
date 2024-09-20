@@ -1,118 +1,136 @@
-
-
 import 'dart:developer';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:flutter_ios/widgets/appbar.dart';
-import 'package:flutter_ios/widgets/background.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
-class EditOrgProfilePage extends StatefulWidget {
+class OrgProfileEditPage extends StatefulWidget {
+  final String organizationId;
+  final String name;
+  final List<Map<String, dynamic>> positions;
+  final String? imageUrl;
 
-  final String president;
-  final String externalVP;
-  final String internalVP;
-  final String secretary;
-  final String assistantSecretary;
-  final String treasurer;
-  final String assistantTreasurer;
-  final String auditor;
-  final String assistantAuditor;
-  final String pio1;
-  final String pio2;
-  final VoidCallback onSave;
-
-  const EditOrgProfilePage({
-
-    required this.president,
-    required this.externalVP,
-    required this.internalVP,
-    required this.secretary,
-    required this.assistantSecretary,
-    required this.treasurer,
-    required this.assistantTreasurer,
-    required this.auditor,
-    required this.assistantAuditor,
-    required this.pio1,
-    required this.pio2,
-    required this.onSave,
+  const OrgProfileEditPage({
+    required this.organizationId,
+    required this.name,
+    required this.positions,
+    this.imageUrl,
     super.key,
   });
 
   @override
-  State<EditOrgProfilePage> createState() => _EditOrgProfilePageState();
+  _OrgProfileEditPageState createState() => _OrgProfileEditPageState();
 }
 
-class _EditOrgProfilePageState extends State<EditOrgProfilePage> {
-
-  late TextEditingController _presidentController;
-  late TextEditingController _externalVPController;
-  late TextEditingController _internalVPController;
-  late TextEditingController _secretaryController;
-  late TextEditingController _assistantSecretaryController;
-  late TextEditingController _treasurerController;
-  late TextEditingController _assistantTreasurerController;
-  late TextEditingController _auditorController;
-  late TextEditingController _assistantAuditorController;
-  late TextEditingController _pio1Controller;
-  late TextEditingController _pio2Controller;
+class _OrgProfileEditPageState extends State<OrgProfileEditPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final firebase_storage.FirebaseStorage _storage =
+      firebase_storage.FirebaseStorage.instance;
+  final List<TextEditingController> _positionControllers = [];
+  final List<TextEditingController> _valueControllers = [];
+  final List<int> _rankSelections = [];
+  XFile? _imageFile;
+  String? _updatedImageUrl;
 
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
+  }
 
-    _presidentController = TextEditingController(text: widget.president);
-    _externalVPController = TextEditingController(text: widget.externalVP);
-    _internalVPController = TextEditingController(text: widget.internalVP);
-    _secretaryController = TextEditingController(text: widget.secretary);
-    _assistantSecretaryController = TextEditingController(text: widget.assistantSecretary);
-    _treasurerController = TextEditingController(text: widget.treasurer);
-    _assistantTreasurerController = TextEditingController(text: widget.assistantTreasurer);
-    _auditorController = TextEditingController(text: widget.auditor);
-    _assistantAuditorController = TextEditingController(text: widget.assistantAuditor);
-    _pio1Controller = TextEditingController(text: widget.pio1);
-    _pio2Controller = TextEditingController(text: widget.pio2);
+  void _initializeControllers() {
+    for (var positionData in widget.positions) {
+      _positionControllers
+          .add(TextEditingController(text: positionData['position']));
+      _valueControllers
+          .add(TextEditingController(text: positionData['assignedPerson']));
+      _rankSelections.add(positionData['rank']);
+    }
+  }
+
+  void _addNewPosition() {
+    setState(() {
+      _positionControllers.add(TextEditingController());
+      _valueControllers.add(TextEditingController());
+      _rankSelections.add(_rankSelections.length + 1);
+    });
+  }
+
+  Future<void> _savePositions() async {
+    List<Map<String, dynamic>> newPositions = [];
+    for (int i = 0; i < _positionControllers.length; i++) {
+      String position = _positionControllers[i].text;
+      String value = _valueControllers[i].text;
+      int rank = _rankSelections[i];
+      if (position.isNotEmpty && value.isNotEmpty) {
+        newPositions.add({
+          'position': position,
+          'assignedPerson': value,
+          'rank': rank,
+        });
+      }
+    }
+
+    try {
+      await _firestore
+          .collection('organizations')
+          .doc(widget.organizationId)
+          .update({
+        'positions': newPositions,
+        'imageUrl': _updatedImageUrl ?? widget.imageUrl,
+      });
+      log('Saved image URL');
+      Navigator.pop(context);
+    } catch (e) {
+      log('Error saving positions: $e');
+    }
+  }
+
+  void _removePosition(int index) {
+    setState(() {
+      _positionControllers.removeAt(index);
+      _valueControllers.removeAt(index);
+      _rankSelections.removeAt(index);
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = pickedFile;
+      });
+      _uploadImage();
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_imageFile == null) return;
+
+    try {
+      final ref = _storage
+          .ref()
+          .child('organization_images/${widget.organizationId}.jpg');
+      await ref.putFile(File(_imageFile!.path));
+      _updatedImageUrl = await ref.getDownloadURL();
+      log('Updated image URL: $_updatedImageUrl');
+    } catch (e) {
+      log('Error uploading image: $e');
+    }
   }
 
   @override
   void dispose() {
-
-    _presidentController.dispose();
-    _externalVPController.dispose();
-    _internalVPController.dispose();
-    _secretaryController.dispose();
-    _assistantSecretaryController.dispose();
-    _treasurerController.dispose();
-    _assistantTreasurerController.dispose();
-    _auditorController.dispose();
-    _assistantAuditorController.dispose();
-    _pio1Controller.dispose();
-    _pio2Controller.dispose();
-    super.dispose();
-  }
-
-  void _saveDetails() async {
-    try {
-      await _firestore.collection('organizations').doc('OrgProfile').set({
-
-        'president': _presidentController.text,
-        'externalVP': _externalVPController.text,
-        'internalVP': _internalVPController.text,
-        'secretary': _secretaryController.text,
-        'assistantSecretary': _assistantSecretaryController.text,
-        'treasurer': _treasurerController.text,
-        'assistantTreasurer': _assistantTreasurerController.text,
-        'auditor': _auditorController.text,
-        'assistantAuditor': _assistantAuditorController.text,
-        'pio1': _pio1Controller.text,
-        'pio2': _pio2Controller.text,
-      });
-      widget.onSave();
-      Navigator.pop(context);
-    } catch (e) {
-      log("Error saving data: $e");
+    for (var controller in _positionControllers) {
+      controller.dispose();
     }
+    for (var controller in _valueControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -121,59 +139,107 @@ class _EditOrgProfilePageState extends State<EditOrgProfilePage> {
       appBar: const CustomAppBar(
         title: 'Edit Organization Profile',
       ),
-      body: CustomBackground(
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const SizedBox(height: 5.0),
-                const Divider(),
-                const Text(
-                  "Officers",
-                  style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.bold),
+      body: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(height: 8.0),
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 70,
+                    backgroundImage: _imageFile != null
+                        ? FileImage(File(_imageFile!.path))
+                        : (widget.imageUrl != null
+                                ? AssetImage(widget.imageUrl!)
+                                : const AssetImage(
+                                    'assets/default_avatar.png'))
+                            as ImageProvider,
+                  ),
                 ),
-                _buildOfficerEntry("President", _presidentController),
-                _buildOfficerEntry("External VP", _externalVPController),
-                _buildOfficerEntry("Internal VP", _internalVPController),
-                _buildOfficerEntry("Secretary", _secretaryController),
-                _buildOfficerEntry("Assistant Secretary", _assistantSecretaryController),
-                _buildOfficerEntry("Treasurer", _treasurerController),
-                _buildOfficerEntry("Assistant Treasurer", _assistantTreasurerController),
-                _buildOfficerEntry("Auditor", _auditorController),
-                _buildOfficerEntry("Assistant Auditor", _assistantAuditorController),
-                _buildOfficerEntry("PIO 1", _pio1Controller),
-                _buildOfficerEntry("PIO 2", _pio2Controller),
-                const SizedBox(height: 8.0),
-                ElevatedButton(
-                  onPressed: _saveDetails,
-                  child: const Text("Save Details"),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                widget.name,
+                style: const TextStyle(fontSize: 19.0),
+              ),
+              const SizedBox(height: 10.0),
+              const Divider(),
+              const Text(
+                "Edit Positions",
+                style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10.0),
+              ..._buildPositionFields(),
+              const SizedBox(height: 10.0),
+              ElevatedButton(
+                onPressed: _addNewPosition,
+                child: const Text("Add Position"),
+              ),
+              const SizedBox(height: 10.0),
+              ElevatedButton(
+                onPressed: _savePositions,
+                child: const Text("Save Changes"),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildOfficerEntry(String title, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: title,
+  List<Widget> _buildPositionFields() {
+    List<Widget> fields = [];
+    for (int i = 0; i < _positionControllers.length; i++) {
+      fields.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _positionControllers[i],
+                  decoration: InputDecoration(labelText: "Position ${i + 1}"),
+                ),
               ),
-              style: const TextStyle(fontSize: 15.0),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: _valueControllers[i],
+                  decoration:
+                      const InputDecoration(labelText: "Assigned Person"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              DropdownButton<int>(
+                value: _rankSelections[i],
+                items: List.generate(
+                        _positionControllers.length, (index) => index + 1)
+                    .map((rank) => DropdownMenuItem<int>(
+                          value: rank,
+                          child: Text(rank.toString()),
+                        ))
+                    .toList(),
+                onChanged: (int? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _rankSelections[i] = newValue;
+                    });
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => _removePosition(i),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ),
+      );
+    }
+    return fields;
   }
 }

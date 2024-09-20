@@ -16,6 +16,7 @@ class OrganizationSignupScreen extends StatefulWidget {
 class _OrganizationSignupScreenState extends State<OrganizationSignupScreen> {
   final AuthService _auth = AuthService();
   final DatabaseService _dbService = DatabaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final TextEditingController _orgName = TextEditingController();
   final TextEditingController _email = TextEditingController();
@@ -143,28 +144,55 @@ class _OrganizationSignupScreenState extends State<OrganizationSignupScreen> {
     }
 
     try {
+      // Create the user in Firebase Authentication
       await _signup();
+
+      // Get the current user's UID from Firebase Auth
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        throw Exception("Failed to retrieve user ID after signup.");
+      }
+
+      // Use the user's UID as the organization ID
+      String organizationId = userId;
+
+      // Organization data to be saved in Firestore
       final orgData = {
         'name': _orgName.text,
         'program': _selectedProgram,
+        'organizationId': organizationId, // Save the UID as organizationId
       };
 
+      // Organization user data
       final user = OrgUser(
         name: _orgName.text,
         email: _email.text,
         phone: _phone.text,
         program: _selectedProgram!,
         userLevel: "organization_user",
+        organizationId: organizationId, // Assign the same UID as organizationId
       );
 
+      // Save the organization and user details in Firestore
       await _dbService.createOrg(orgData, user);
+
+      // Save the organizationId to the user's document in Firestore
+      await _firestore.collection('users').doc(userId).set({
+        'organizationId': organizationId,
+        'name': _orgName.text,
+        'email': _email.text,
+        'phone': _phone.text,
+      });
+
       Navigator.pop(context);
     } catch (e) {
       debugPrint("Signup failed: $e");
     }
-    await _auth.sendEmailVerificationLink();
 
+    // Send email verification after sign-up
+    await _auth.sendEmailVerificationLink();
   }
+
 
   Future<void> _signup() async {
     await _auth.createUserWithEmailAndPassword(_email.text, _password.text);
@@ -177,6 +205,7 @@ class OrgUser {
   final String phone;
   final String program;
   final String userLevel;
+  final String organizationId; // Add organizationId to the OrgUser class
 
   OrgUser({
     required this.name,
@@ -184,6 +213,7 @@ class OrgUser {
     required this.phone,
     required this.program,
     required this.userLevel,
+    required this.organizationId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -192,5 +222,6 @@ class OrgUser {
     'phone': phone,
     'program': program,
     'user_level': userLevel,
+    'organizationId': organizationId,
   };
 }
