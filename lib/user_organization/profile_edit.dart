@@ -117,6 +117,13 @@ class _OrgProfileEditPageState extends State<OrgProfileEditPage> {
       await ref.putFile(File(_imageFile!.path));
       _updatedImageUrl = await ref.getDownloadURL();
       log('Updated image URL: $_updatedImageUrl');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile is updated. Restart to load profile picture.'),
+        ),
+      );
+
     } catch (e) {
       log('Error uploading image: $e');
     }

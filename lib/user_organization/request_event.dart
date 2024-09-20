@@ -1,6 +1,12 @@
+import 'dart:developer';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/sidebar/sidebar_org.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
+import 'dart:io';
 
 class RequestEventPage extends StatefulWidget {
   const RequestEventPage({super.key});
@@ -19,8 +25,8 @@ class RequestEventPageState extends State<RequestEventPage> {
   final TextEditingController _descriptionController = TextEditingController();
 
   DateTimeRange? _dateTimeRange;
-  String? _sarfFile;
-  String? _requestLetterFile;
+  PlatformFile? _sarfFile;
+  PlatformFile? _requestLetterFile;
 
   Future<void> _selectDateTimeRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
@@ -35,14 +41,80 @@ class RequestEventPageState extends State<RequestEventPage> {
     }
   }
 
-  Future<void> _pickFile() async {
-    // Placeholder for file picking logic
-    // You can use packages like file_picker or image_picker for this
+  Future<void> _pickSarfFile() async {
+
+      final result = await FilePicker.platform.pickFiles();
+      if (result != null) {
+        setState(() {
+          _sarfFile = result.files.first;
+        });
+      }
+    }
+//TODO 09/20/24 need to test phone file
+  Future<void> _pickRequestLetterFile() async {
+
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _requestLetterFile = result.files.first;
+      });
+    }
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      // Handle form submission
+
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate() &&
+        _dateTimeRange != null &&
+        _sarfFile != null &&
+        _requestLetterFile != null) {
+      try {
+        // Upload files to Firebase Storage
+        final storage = FirebaseStorage.instance;
+        final sarfFileRef = storage
+            .ref()
+            .child('event_files/${DateTime.now().millisecondsSinceEpoch}_sarf');
+        final requestLetterFileRef = storage.ref().child(
+            'event_files/${DateTime.now().millisecondsSinceEpoch}_request');
+
+        await sarfFileRef.putFile(File(_sarfFile!.path!));
+        await requestLetterFileRef.putFile(File(_requestLetterFile!.path!));
+
+        final sarfFileUrl = await sarfFileRef.getDownloadURL();
+        final requestLetterFileUrl =
+            await requestLetterFileRef.getDownloadURL();
+
+        // Save data to Firestore
+        await FirebaseFirestore.instance.collection('Events').add({
+          'eventName': _eventNameController.text,
+          'startDate': _dateTimeRange!.start,
+          'endDate': _dateTimeRange!.end,
+          'venue': _venueController.text,
+          'participants': _participantsController.text,
+          'budgetSource': _budgetSourceController.text,
+          'budgetAmount': double.parse(_budgetAmountController.text),
+          'description': _descriptionController.text,
+          'sarfFileUrl': sarfFileUrl,
+          'requestLetterFileUrl': requestLetterFileUrl,
+          'status': '_forApproval', // Hardcoded status
+        });
+
+        // Show success message or navigate to another screen
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Event request submitted successfully!')),
+        );
+      } catch (e) {
+        // Handle errors
+        log('Error submitting event request: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to submit event request.')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please fill in all fields and upload files.')),
+      );
     }
   }
 
@@ -73,7 +145,7 @@ class RequestEventPageState extends State<RequestEventPage> {
               ListTile(
                 title: Text(_dateTimeRange == null
                     ? 'When'
-                    : '${_dateTimeRange!.start} - ${_dateTimeRange!.end}'),
+                    : '${_dateTimeRange!.start.toLocal()} - ${_dateTimeRange!.end.toLocal()}'),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDateTimeRange(context),
               ),
@@ -153,16 +225,17 @@ class RequestEventPageState extends State<RequestEventPage> {
               ),
               const SizedBox(height: 16.0),
               ListTile(
-                title: Text(_sarfFile == null ? 'Upload SARF' : _sarfFile!),
+                title:
+                    Text(_sarfFile == null ? 'Upload SARF' : _sarfFile!.name),
                 trailing: const Icon(Icons.attach_file),
-                onTap: _pickFile,
+                onTap: _pickSarfFile,
               ),
               ListTile(
                 title: Text(_requestLetterFile == null
                     ? 'Upload Request Letter'
-                    : _requestLetterFile!),
+                    : _requestLetterFile!.name),
                 trailing: const Icon(Icons.attach_file),
-                onTap: _pickFile,
+                onTap: _pickRequestLetterFile,
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(
