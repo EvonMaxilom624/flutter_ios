@@ -7,6 +7,7 @@ import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/calendar.dart';
 import 'package:flutter_ios/user_organization/announcements.dart';
 import 'package:flutter_ios/user_organization/dashboard_org.dart';
+import 'package:flutter_ios/user_organization/event_status.dart';
 import 'package:flutter_ios/user_organization/profile.dart';
 import 'package:flutter_ios/user_organization/report_event.dart';
 import 'package:flutter_ios/user_organization/request_event.dart';
@@ -50,6 +51,17 @@ class CollapsibleSidebarOrganization extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const RequestEventPage()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.event_note),
+                title: const Text('Event Status'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EventStatusPage()),
                   );
                 },
               ),

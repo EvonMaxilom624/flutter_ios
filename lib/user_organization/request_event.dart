@@ -4,9 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/sidebar/sidebar_org.dart';
+import 'package:flutter_ios/user_organization/event_status.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'dart:io';
+import 'dart:async';
 
 class RequestEventPage extends StatefulWidget {
   const RequestEventPage({super.key});
@@ -27,6 +30,12 @@ class RequestEventPageState extends State<RequestEventPage> {
   DateTimeRange? _dateTimeRange;
   PlatformFile? _sarfFile;
   PlatformFile? _requestLetterFile;
+  Timer? _debounceTimer;
+  String? _userId;
+  bool _isButtonDisabled = false; // Flag to track button state
+  final int _disableDuration = 5;
+
+
 
   Future<void> _selectDateTimeRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
@@ -42,17 +51,15 @@ class RequestEventPageState extends State<RequestEventPage> {
   }
 
   Future<void> _pickSarfFile() async {
-
-      final result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        setState(() {
-          _sarfFile = result.files.first;
-        });
-      }
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _sarfFile = result.files.first;
+      });
     }
-//TODO 09/20/24 need to test phone file
-  Future<void> _pickRequestLetterFile() async {
+  }
 
+  Future<void> _pickRequestLetterFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null) {
       setState(() {
@@ -61,29 +68,82 @@ class RequestEventPageState extends State<RequestEventPage> {
     }
   }
 
+  void _submitForm() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _performSubmission();
+    });
+  }
 
-  Future<void> _submitForm() async {
+  @override
+  void initState() {
+    super.initState();
+    _userId = AuthService().currentUser?.uid; // Get the user ID
+  }
+
+  Future<int> _getNextEventId() async {
+    final eventsCollection = FirebaseFirestore.instance.collection('Events');
+    final querySnapshot = await eventsCollection.orderBy('eventId', descending: true).limit(1).get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final lastEvent = querySnapshot.docs.first.data() as Map<String, dynamic>;
+      return (lastEvent['eventId'] as int) + 1;
+    } else {
+      return 100000; // Starting ID
+    }
+  }
+
+  Future<void> _performSubmission() async {
     if (_formKey.currentState!.validate() &&
         _dateTimeRange != null &&
         _sarfFile != null &&
-        _requestLetterFile != null) {
+        _requestLetterFile != null &&
+        _userId != null) {
+      setState(() {
+        _isButtonDisabled = true; // Disable the button
+      });
       try {
-        // Upload files to Firebase Storage
+        // Check if an event with the same details already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('Events')
+            .where('eventName', isEqualTo: _eventNameController.text)
+            .where('startDate', isEqualTo: _dateTimeRange!.start)
+            .where('endDate', isEqualTo: _dateTimeRange!.end)
+            .where('venue', isEqualTo: _venueController.text)
+            .where('participants', isEqualTo: _participantsController.text)
+            .where('budgetSource', isEqualTo: _budgetSourceController.text)
+            .where('budgetAmount', isEqualTo: _budgetAmountController.text)
+            .where('description', isEqualTo: _descriptionController.text)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // Event already exists
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('An event with these details already exists.')),
+          );
+          return;
+        }
+
+        // Get the next event ID
+        final nextEventId = await _getNextEventId();
+
+        // Event doesn't exist, proceed with submission
         final storage = FirebaseStorage.instance;
         final sarfFileRef = storage
             .ref()
-            .child('event_files/${DateTime.now().millisecondsSinceEpoch}_sarf');
-        final requestLetterFileRef = storage.ref().child(
-            'event_files/${DateTime.now().millisecondsSinceEpoch}_request');
+            .child('event_files/${nextEventId}_sarf'); // Use event ID in file name
+        final requestLetterFileRef = storage
+            .ref()
+            .child('event_files/${nextEventId}_request'); // Use event ID in file name
 
         await sarfFileRef.putFile(File(_sarfFile!.path!));
         await requestLetterFileRef.putFile(File(_requestLetterFile!.path!));
 
         final sarfFileUrl = await sarfFileRef.getDownloadURL();
-        final requestLetterFileUrl =
-            await requestLetterFileRef.getDownloadURL();
+        final requestLetterFileUrl = await requestLetterFileRef.getDownloadURL();
 
-        // Save data to Firestore
+
         await FirebaseFirestore.instance.collection('Events').add({
           'eventName': _eventNameController.text,
           'startDate': _dateTimeRange!.start,
@@ -95,21 +155,33 @@ class RequestEventPageState extends State<RequestEventPage> {
           'description': _descriptionController.text,
           'sarfFileUrl': sarfFileUrl,
           'requestLetterFileUrl': requestLetterFileUrl,
-          'status': '_forApproval', // Hardcoded status
+          'status': '_forApproval',
+          'requesterId': _userId,
+          'eventId': nextEventId,
         });
 
-        // Show success message or navigate to another screen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Event request submitted successfully!')),
         );
       } catch (e) {
-        // Handle errors
         log('Error submitting event request: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to submit event request.')),
         );
+      } finally {
+        // Re-enable the button after the specified duration
+        Timer(Duration(seconds: _disableDuration), () {
+          setState(() {
+            _isButtonDisabled = false;
+          });
+          Navigator.pushReplacement( // Use pushReplacement to prevent going back to the form
+            context,
+            MaterialPageRoute(builder: (context) => const EventStatusPage()),
+          );
+        });
       }
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -239,7 +311,7 @@ class RequestEventPageState extends State<RequestEventPage> {
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(
-                onPressed: _submitForm,
+                onPressed: _isButtonDisabled ? null : _submitForm, // Disable if _isButtonDisabled is true
                 child: const Text('Submit Request'),
               ),
             ],
