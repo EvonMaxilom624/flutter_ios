@@ -1,144 +1,258 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
-import 'package:flutter_ios/widgets/background.dart';
+import 'package:flutter_ios/sidebar/sidebar_admin.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
-class EventApprovalPage extends StatefulWidget {
-  const EventApprovalPage({super.key});
+
+class ForApprovalPage extends StatefulWidget {
+  const ForApprovalPage({super.key});
 
   @override
-  State<EventApprovalPage> createState() => EventApprovalPageState();
+  State<ForApprovalPage> createState() => _ForApprovalPageState();
 }
 
-class EventApprovalPageState extends State<EventApprovalPage> {
-  final List<EventRequest> _eventRequests = [
-    EventRequest(
-      id: '1',
-      eventName: 'Tech Conference 2024',
-      eventDate: '2024-07-20',
-      eventLocation: 'Auditorium',
-      organizer: 'Tech Club',
-    ),
-    EventRequest(
-      id: '2',
-      eventName: 'Art Workshop',
-      eventDate: '2024-08-15',
-      eventLocation: 'Art Room',
-      organizer: 'Art Club',
-    ),
-    // Add more event requests as needed
-  ];
-
-  void _approveEvent(String eventId) {
-    setState(() {
-      final index = _eventRequests.indexWhere((event) => event.id == eventId);
-      if (index != -1) {
-        _eventRequests[index].isApproved = true;
-        // Implement notification logic here
-      }
-    });
-  }
+class _ForApprovalPageState extends State<ForApprovalPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: "Event Approval"),
+      appBar: const CustomAppBar(title: 'For Approval'),
       drawer: const CollapsibleSidebarAdmin(),
-      body: CustomBackground(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListView(
-                children: _eventRequests.map((event) {
-                  return Card(
-                    elevation: 4,
-                    child: ExpansionTile(
-                      title: Text(event.eventName),
-                      subtitle: Text('Organizer: ${event.organizer}'),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Date: ${event.eventDate}'),
-                              Text('Location: ${event.eventLocation}'),
-                              Text('Organizer: ${event.organizer}'),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Checkbox(
-                                    value: event.isApproved,
-                                    onChanged: (bool? value) {
-                                      if (value != null && value) {
-                                        _approveEvent(event.id);
-                                      }
-                                    },
-                                  ),
-                                  const Text('Approve'),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('Events')
+            .where('status', isEqualTo: '_forApproval')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No events for approval.'));
+          }
+
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final event = snapshot.data!.docs[index].data()
+              as Map<String, dynamic>;
+              final eventId = snapshot.data!.docs[index].id;
+              return FutureBuilder<DocumentSnapshot>(
+                future: _firestore.collection('users').doc(event['requesterId']).get(),
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (userSnapshot.hasError || !userSnapshot.hasData) {
+                    return const Text('Error loading organization name');
+                  }
+
+                  final organizationName = userSnapshot.data!['name'];
+
+                  return EventApprovalCard(
+                    event: event,
+                    eventId: eventId,
+                    organizationName: organizationName,
                   );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
-void main() {
-  runApp(const MaterialApp(
-    home: EventApprovalPage(),
-  ));
-}
+class EventApprovalCard extends StatefulWidget {
+  final Map<String, dynamic> event;
+  final String eventId;
+  final String organizationName;
 
-class EventRequest {
-  final String id;
-  final String eventName;
-  final String eventDate;
-  final String eventLocation;
-  final String organizer;
-  bool isApproved;
-
-  EventRequest({
-    required this.id,
-    required this.eventName,
-    required this.eventDate,
-    required this.eventLocation,
-    required this.organizer,
-    this.isApproved = false,
+  const EventApprovalCard({
+    super.key,
+    required this.event,
+    required this.eventId,
+    required this.organizationName,
   });
+
+  @override
+  State<EventApprovalCard> createState() => _EventApprovalCardState();
 }
 
-/*void _approveEvent(String eventId) {
-  setState(() {
-    final index = _eventRequests.indexWhere((event) => event.id == eventId);
-    if (index != -1) {
-      _eventRequests[index].isApproved = true;
+class _EventApprovalCardState extends State<EventApprovalCard> {
+  bool _isExpanded = false;
 
-      // Implement notification logic here
-      // For example, using Firebase Cloud Messaging to notify the organizer
-      sendApprovalNotification(_eventRequests[index]);
+  @override
+  Widget build(BuildContext context) {
+    final startDate = (widget.event['startDate'] as Timestamp).toDate();
+    final endDate = (widget.event['endDate'] as Timestamp).toDate();
+    final formattedStartDate = DateFormat('MMM dd, yyyy').format(startDate);
+    final formattedEndDate = DateFormat('MMM dd, yyyy').format(endDate);
+
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      child: ExpansionTile( // Use ExpansionTile for collapsible card
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Organization: ${widget.organizationName}'),
+            Text('Event Name: ${widget.event['eventName']}'),
+            Text('Date: $formattedStartDate - $formattedEndDate'),
+          ],
+        ),
+        children: [ // Details to show when expanded
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Event ID: ${widget.event['eventId']}'),
+                  Text('Venue: ${widget.event['venue']}'),
+                  Text('Participants: ${widget.event['participants']}'),
+                  Text(
+                      'Budget: ${widget.event['budgetSource']} - ${widget
+                          .event['budgetAmount']}'),
+                  Text('Description: ${widget.event['description']}'),
+
+
+                  _buildFileLink('SARF', widget.event['sarfFileUrl'],),
+                  _buildFileLink(
+                      'Request Letter', widget.event['requestLetterFileUrl']),
+
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('Events')
+                                .doc(widget.eventId)
+                                .update({'status': 'approved'});
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Event approved successfully!')),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Error approving event: $e')),
+                            );
+                          }
+                        },
+                        child: const Text('Approve'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('Events')
+                                .doc(widget.eventId)
+                                .update({'status': 'denied'});
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Event denied.')),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Error denying event: $e')),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        child: const Text('Deny'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        onExpansionChanged: (expanded) {
+          setState(() {
+            _isExpanded = expanded;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildFileLink(String label, String? url) {
+    if (url == null || url.isEmpty) {
+      return const SizedBox.shrink();
     }
-  });
-}*/
 
-void sendApprovalNotification(EventRequest event) {
-  // Example notification logic
-  // FirebaseMessaging.instance.sendMessage(
-  //   to: event.organizerToken,
-  //   data: {
-  //     'title': 'Event Approved',
-  //     'body': 'Your event "${event.eventName}" has been approved.',
-  //   },
-  // );
+    String displayedUrl = url.length > 40 ? '${url.substring(0, 35)}...' : url;
+
+    return SizedBox( // Add SizedBox to constrain height
+      height: 40, // Set a suitable height for the InkWell
+      child: InkWell(
+        onTap: () async {
+          if (await canLaunchUrlString(url)) {
+            // Instead of launching the URL directly, prompt the user to download
+            showDialog(
+              context: context,
+              builder: (context) =>
+                  AlertDialog(
+                    title: const Text('View File'),
+                    content: Text('Do you want to view the $label?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await launchUrlString(url,
+                              mode: LaunchMode.externalApplication);
+                          // Use LaunchMode.externalApplication to open the URL in the browser or an external app
+                        },
+                        child: const Text('View'),
+                      ),
+                    ],
+                  ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not open file.')),
+            );
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            children: [
+              const Icon(Icons.attach_file),
+              const SizedBox(width: 8.0),
+              Text(
+                '$label: ',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(displayedUrl),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

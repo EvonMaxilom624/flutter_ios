@@ -10,6 +10,7 @@ import 'package:flutter_ios/user_admin/all_activities.dart';
 import 'package:flutter_ios/user_admin/create_event.dart';
 import 'package:flutter_ios/user_admin/dashboard_admin.dart';
 import 'package:flutter_ios/user_admin/degree_program.dart';
+import 'package:flutter_ios/user_admin/for_approval.dart';
 import 'package:flutter_ios/user_admin/organization_list.dart';
 import 'package:flutter_ios/user_admin/profile.dart';
 
@@ -126,7 +127,10 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                 title: const Text('For Approval'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO Navigate to the For Approval page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ForApprovalPage()),
+                  );
                 },
               ),
               ListTile(

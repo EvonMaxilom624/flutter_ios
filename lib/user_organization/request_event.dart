@@ -86,7 +86,7 @@ class RequestEventPageState extends State<RequestEventPage> {
     final querySnapshot = await eventsCollection.orderBy('eventId', descending: true).limit(1).get();
 
     if (querySnapshot.docs.isNotEmpty) {
-      final lastEvent = querySnapshot.docs.first.data() as Map<String, dynamic>;
+      final lastEvent = querySnapshot.docs.first.data();
       return (lastEvent['eventId'] as int) + 1;
     } else {
       return 100000; // Starting ID
