@@ -1,142 +1,163 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
-import 'package:flutter_ios/widgets/background.dart';
+import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
 
 class CalendarPage extends StatefulWidget {
-  final Widget sidebar;
-  const CalendarPage({super.key, required this.sidebar});
+  const CalendarPage({super.key});
 
   @override
   State<CalendarPage> createState() => _CalendarPageState();
 }
 
 class _CalendarPageState extends State<CalendarPage> {
-  late CalendarFormat _calendarFormat;
-  late DateTime _focusedDay;
-  late DateTime _selectedDay;
-
-  late Map<DateTime, List<dynamic>> _events;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  Map<DateTime, List<Map<String, dynamic>>> _events = {};
 
   @override
   void initState() {
     super.initState();
-    _calendarFormat = CalendarFormat.month;
-    _focusedDay = DateTime.now();
-    _selectedDay = DateTime.now();
-    _events = generateEvents(); // Generate events dynamically
+    _fetchEvents();
   }
 
-  Map<DateTime, List<dynamic>> generateEvents() {
-    Map<DateTime, List<dynamic>> events = {};
+  Future<void> _fetchEvents() async {
+    final querySnapshot = await _firestore.collection('Events').get();
+    print('Fetched ${querySnapshot.docs.length} event documents'); // Log the number of events fetched
 
-    final DateTime now = DateTime.now();
-    final DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    setState(() {
+      for (var doc in querySnapshot.docs) {
+        final event = doc.data() as Map<String, dynamic>;
+        final startDate = (event['startDate'] as Timestamp).toDate();
+        final endDate = (event['endDate'] as Timestamp).toDate();
 
-    // Loop through each day of the month
-    for (int i = 1; i <= lastDayOfMonth.day; i++) {
-      final DateTime day = DateTime(now.year, now.month, i);
+        print('Event: ${event['eventName']} - Start: $startDate, End: $endDate'); // Log event details
 
-      // Check if the day falls within the first 7 days
-      if (i <= 7) {
-        // Add an event for this day
-        events.putIfAbsent(day, () => ['Event for first week']);
+        // Add event to each day in the range
+        for (var date = startDate;
+        date.isBefore(endDate.add(const Duration(days: 1)));
+        date = date.add(const Duration(days: 1))) {
+          if (_events[date] == null) {
+            _events[date] = [];
+          }
+          _events[date]!.add(event.cast<String, dynamic>());
+        }
       }
-    }
+      print('Events Map: $_events'); // Log the events map
+    });
+  }
 
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    print('Getting events for day: $day'); // Log the day for which events are being retrieved
+    final events = _events[day] ?? [];
+    print('Found ${events.length} events'); // Log the number of events found
     return events;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(
-        title: 'Calendar',
-      ),
-      drawer: widget.sidebar,
-      body: CustomBackground(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TableCalendar(
-                  firstDay: DateTime.utc(2021, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _focusedDay,
-                  calendarFormat: _calendarFormat,
-                  selectedDayPredicate: (day) {
-                    return isSameDay(_selectedDay, day);
-                  },
-                  eventLoader: (day) {
-                    final events = _events[day];
-                    return events ?? [];
-                  },
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, date, _) {
-                      if (date.day <= 7) {
-                        return Container(
-                          margin: const EdgeInsets.all(4.0),
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.red,
-                          ),
-                          child: Text(
-                            '${date.day}',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        );
-                      } else {
-                        return Container(
-                          margin: const EdgeInsets.all(4.0),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.blue, width: 2),
-                          ),
-                          child: Text(
-                            '${date.day}',
-                            style: const TextStyle(color: Colors.blue),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
-                  },
-                  onFormatChanged: (format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDay = focusedDay;
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Card(
-                  elevation: 3,
-                  child: ListTile(
-                    title: const Text('Exam Prep'),
-                    subtitle: const Text('Week before the examination.'),
-                    onTap: () {
-                      // Handle tap event
-                    },
-                  ),
-                ),
-              ),
-            ],
+      appBar: const CustomAppBar(title: 'Event Calendar'),
+      drawer: const CollapsibleSidebarAdmin(),
+      body: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: _calendarFormat,
+            selectedDayPredicate: (day) {
+              return isSameDay(_selectedDay, day);
+            },
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            onFormatChanged: (format) {
+              setState(() {
+                _calendarFormat = format;
+              });
+            },
+            onPageChanged: (focusedDay) {
+              _focusedDay = focusedDay;
+            },
+            eventLoader: _getEventsForDay,
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, events) {
+                if (events.isNotEmpty) {
+                  print('Building markers for date: $date'); // Log the date for which markers are being built
+                  print('Events: $events'); // Log the events being used for markers
+                  return _buildEventMarkers(
+                      events.cast<Map<String, dynamic>>());
+                }
+                return null;
+              },
+            ),
           ),
-        ),
+          const SizedBox(height: 8.0),
+          Expanded(
+            child: _selectedDay != null
+                ? ListView.builder(
+              itemCount: _getEventsForDay(_selectedDay!).length,
+              itemBuilder: (context, index) {
+                final event = _getEventsForDay(_selectedDay!)[index];
+                return _buildEventTile(event);
+              },
+            )
+                : const Center(child: Text('Select a date to view events')),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildEventMarkers(List<Map<String, dynamic>> events) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: events.map((event) {
+        final status = event['status'];
+        final color = status == '_forApproval' ? Colors.orange : Colors.green;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2.0),
+          width: 8.0,
+          height: 8.0,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildEventTile(Map<String, dynamic> event) {
+    return ListTile(
+      title: Text(event['eventName']),
+      subtitle: Text(DateFormat('MMM dd, yyyy')
+          .format((event['startDate'] as Timestamp).toDate())),
+      trailing: Chip(
+        label: Text(event['status']),
+        backgroundColor: _getStatusColor(event['status']),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case '_forApproval':
+        return Colors.orange;
+      case 'approved':
+        return Colors.green;
+      case 'denied':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 }

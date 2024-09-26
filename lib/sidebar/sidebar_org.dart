@@ -83,7 +83,7 @@ class CollapsibleSidebarOrganization extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CalendarPage(sidebar: CollapsibleSidebarOrganization(),)),
+                    MaterialPageRoute(builder: (context) => const CalendarPage()),
                   );
                 },
               ),

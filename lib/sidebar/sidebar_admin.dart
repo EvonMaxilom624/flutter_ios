@@ -7,6 +7,7 @@ import 'package:flutter_ios/auth/forgot_pass.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/calendar.dart';
 import 'package:flutter_ios/user_admin/all_activities.dart';
+import 'package:flutter_ios/user_admin/approved_events.dart';
 import 'package:flutter_ios/user_admin/create_event.dart';
 import 'package:flutter_ios/user_admin/dashboard_admin.dart';
 import 'package:flutter_ios/user_admin/degree_program.dart';
@@ -138,7 +139,10 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                 title: const Text('Approved Activities'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO Navigate to the Approved Activities page
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ApprovedEventsPage()),
+                  );
                 },
               ),
               ListTile(
@@ -149,20 +153,19 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const CalendarPage(sidebar: CollapsibleSidebarAdmin(),)
-                    ),
+                        builder: (context) => const CalendarPage()),
                   );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.local_activity_outlined),
-                title: const Text('All Activities'),
+                title: const Text('All Activities Summary'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const AllActivities()
+                        builder: (context) => const AllEventsPage()
                     ),
                   );
                 },
