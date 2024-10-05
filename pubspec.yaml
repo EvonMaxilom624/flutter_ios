@@ -44,6 +44,9 @@ dependencies:
   carousel_slider: ^5.0.0
   image_picker: ^1.1.2
   file_picker: ^8.0.5
+  flutter_svg: ^2.0.10+1
+  build_runner: ^2.4.0
+  build_web_compilers: ^4.0.4
 
 dev_dependencies:
   flutter_test:
@@ -67,8 +70,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/
     - assets/assets/
     - assets/assets/default_avatar.png
+    - assets/assets/ioslogo.svg
+    - assets/assets/ioslogo.jpg
+    - assets/newbg.jpg
 
 
 

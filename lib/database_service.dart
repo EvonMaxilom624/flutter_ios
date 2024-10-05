@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/signup_screen.dart';
+import 'package:flutter_ios/dev/create_admin.dart';
 import 'package:flutter_ios/user_admin/new_organization.dart';
 
 class DatabaseService {
@@ -17,6 +18,16 @@ class DatabaseService {
     //   developer.log('Error creating user: ${e.toString()}');
     //
       }
+
+  }
+
+  // Create for admin user
+  Future<void> admincreate( AdminUser user) async {
+    final String? userId = AuthService().currentUser?.uid;
+
+    if (userId != null) {
+      await _fire.collection('users').doc(userId).set(user.toMap());
+    }
 
   }
 
