@@ -2,20 +2,19 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/sidebar/sidebar_general.dart';
-import 'package:flutter_ios/sidebar/sidebar_org.dart';
+import 'package:flutter_ios/dev/developer_sidebar.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
-class CalendarPageGeneral extends StatefulWidget {
-  const CalendarPageGeneral({super.key});
+class CalendarPageDev extends StatefulWidget {
+  const CalendarPageDev({super.key});
 
   @override
-  State<CalendarPageGeneral> createState() => _CalendarPageGeneralState();
+  State<CalendarPageDev> createState() => _CalendarPageDevState();
 }
 
-class _CalendarPageGeneralState extends State<CalendarPageGeneral> {
+class _CalendarPageDevState extends State<CalendarPageDev> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -37,7 +36,7 @@ class _CalendarPageGeneralState extends State<CalendarPageGeneral> {
       _events = {};
       log('[7] Events cleared'); // Clear existing events
       for (var doc in querySnapshot.docs) {
-        final event = doc.data() as Map<String, dynamic>;
+        final event = doc.data();
         final startDate = (event['startDate'] as Timestamp).toDate();
         log('[8] Adding event to _events map: ${event['eventName']} (startDate: $startDate)');
 
@@ -57,7 +56,7 @@ class _CalendarPageGeneralState extends State<CalendarPageGeneral> {
     log('[2] Building CalendarPageOrg widget...');
     return Scaffold(
       appBar: const CustomAppBar(title: 'Event Calendar'),
-      drawer: const CollapsibleSidebarGeneral(),
+      drawer: const CollapsibleSidebarDeveloper(),
       body: Column(
         children: [
           TableCalendar(
@@ -127,17 +126,6 @@ class _CalendarPageGeneralState extends State<CalendarPageGeneral> {
     log('[4] Found ${events.length} events');
     return events;
   }
-
-  // List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
-  //   log('[3] Getting events for day: $day');
-  //   final events = _events.entries
-  //       .where((entry) => isSameDay(entry.key, day))
-  //       .map((entry) => entry.value)
-  //       .expand((eventList) => eventList) // Flatten the list of lists
-  //       .toList();
-  //   log('[4] Found ${events.length} events');
-  //   return events;
-  // }
 
   Widget _buildEventMarkers(List<Map<String, dynamic>> events) {
     return Row(

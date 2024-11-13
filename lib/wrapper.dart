@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/auth/verification_screen.dart';
+import 'package:flutter_ios/dev/developer_dashboard.dart';
 import 'package:flutter_ios/user_admin/dashboard_admin.dart';
 import 'package:flutter_ios/user_general/dashboard_general.dart';
 import 'package:flutter_ios/user_organization/dashboard_org.dart';
@@ -75,6 +76,9 @@ class Wrapper extends StatelessWidget {
                       case 'general_user':
                         log('[6] Navigating to GeneralUserDashboard');
                         return const GeneralUserDashboard();
+                      case 'developer':
+                        log('[6] Welcome Developer!');
+                        return const DevBoard();
                       default:
                         log('[6] Navigating to default GeneralUserDashboard');
                         return const GeneralUserDashboard();

@@ -8,7 +8,6 @@ import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/sidebar/sidebar_org.dart';
 import 'package:flutter_ios/user_organization/event_status.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
-import 'dart:io';
 import 'dart:async';
 
 class RequestEventPage extends StatefulWidget {

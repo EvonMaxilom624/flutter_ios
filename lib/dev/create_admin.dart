@@ -6,15 +6,15 @@ import 'package:flutter_ios/widgets/background.dart';
 import 'package:flutter_ios/widgets/button.dart';
 import 'package:flutter_ios/widgets/textfield.dart';
 
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+class AdminSignupScreen extends StatefulWidget {
+  const AdminSignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  State<AdminSignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
-  final _auth = AuthService();
+class _SignupScreenState extends State<AdminSignupScreen> {
+  final AuthService _auth = AuthService(); // Create AuthService instance
   final DatabaseService _dbService = DatabaseService();
   final _name = TextEditingController();
   final _email = TextEditingController();
@@ -74,7 +74,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 onPressed: () async {
                   if (_name.text.isEmpty ||
                       _email.text.isEmpty ||
-                      _phone.text.isEmpty) {
+                      _phone.text.isEmpty ||
+                      _password.text.isEmpty) {
+                    // Show error if any field is empty
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -88,7 +90,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         ],
                       ),
                     );
-                    return; // Stop execution if fields are empty
+                    return;
                   }
 
                   try {
@@ -102,16 +104,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     String? uid = _auth.currentUser!.uid;
 
                     // 3. Create user document in Firestore
-                    final user = AppUser(
+                    final user = AdminUser(
                       uid: uid, // Add UID to the AppUser
                       name: _name.text,
                       email: _email.text,
                       phone: _phone.text,
-                      userLevel: "general_user",
+                      userLevel: "admin",
                     );
 
-                    await _dbService
-                        .create(user); // Use your _dbService to save data
+                    await _dbService.admincreate(user); // Use your _dbService to save data
                     // After successful signup, navigate back
                     Navigator.pop(context);
                   } catch (e) {
@@ -120,13 +121,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   }
                 },
               ),
+
               const SizedBox(height: 5),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Text("Already have an account? "),
                 InkWell(
                   onTap: () => goToLogin(context),
                   child:
-                      const Text("Login", style: TextStyle(color: Colors.red)),
+                  const Text("Login", style: TextStyle(color: Colors.red)),
                 )
               ]),
               const Spacer()
@@ -138,30 +140,31 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   goToLogin(BuildContext context) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+    context,
+    MaterialPageRoute(builder: (context) => const LoginScreen()),
+  );
+
 }
 
-class AppUser {
+class AdminUser {
   final String uid; // Add the UID here
   final String name;
   final String email;
   final String phone;
   final String userLevel;
 
-  AppUser(
+  AdminUser(
       {required this.uid, // Required in the constructor
-      required this.name,
-      required this.email,
-      required this.phone,
-      required this.userLevel});
+        required this.name,
+        required this.email,
+        required this.phone,
+        required this.userLevel});
 
   Map<String, dynamic> toMap() => {
-        'uid': uid, // Make sure to include the UID in the map
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'user_level': userLevel,
-      };
+    'uid': uid, // Make sure to include the UID in the map
+    'name': name,
+    'email': email,
+    'phone': phone,
+    'user_level': userLevel,
+  };
 }

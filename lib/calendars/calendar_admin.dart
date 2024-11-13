@@ -2,7 +2,7 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/sidebar/sidebar_org.dart';
+import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -36,7 +36,7 @@ class _CalendarPageAdminState extends State<CalendarPageAdmin> {
       _events = {};
       log('[7] Events cleared'); // Clear existing events
       for (var doc in querySnapshot.docs) {
-        final event = doc.data() as Map<String, dynamic>;
+        final event = doc.data();
         final startDate = (event['startDate'] as Timestamp).toDate();
         log('[8] Adding event to _events map: ${event['eventName']} (startDate: $startDate)');
 
@@ -56,7 +56,7 @@ class _CalendarPageAdminState extends State<CalendarPageAdmin> {
     log('[2] Building CalendarPageOrg widget...');
     return Scaffold(
       appBar: const CustomAppBar(title: 'Event Calendar'),
-      drawer: const CollapsibleSidebarOrganization(),
+      drawer: const CollapsibleSidebarAdmin(),
       body: Column(
         children: [
           TableCalendar(
@@ -115,10 +115,13 @@ class _CalendarPageAdminState extends State<CalendarPageAdmin> {
 
   List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
     log('[3] Getting events for day: $day');
+    if (isSameDay(day, _selectedDay)) {
+
+    }
     final events = _events.entries
         .where((entry) => isSameDay(entry.key, day))
         .map((entry) => entry.value)
-        .expand((eventList) => eventList) // Flatten the list of lists
+        .expand((eventList) => eventList)
         .toList();
     log('[4] Found ${events.length} events');
     return events;

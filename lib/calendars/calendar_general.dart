@@ -2,19 +2,19 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/sidebar/sidebar_org.dart';
+import 'package:flutter_ios/sidebar/sidebar_general.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
-class CalendarPageOrg extends StatefulWidget {
-  const CalendarPageOrg({super.key});
+class CalendarPageGeneral extends StatefulWidget {
+  const CalendarPageGeneral({super.key});
 
   @override
-  State<CalendarPageOrg> createState() => _CalendarPageOrgState();
+  State<CalendarPageGeneral> createState() => _CalendarPageGeneralState();
 }
 
-class _CalendarPageOrgState extends State<CalendarPageOrg> {
+class _CalendarPageGeneralState extends State<CalendarPageGeneral> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -36,7 +36,7 @@ class _CalendarPageOrgState extends State<CalendarPageOrg> {
       _events = {};
       log('[7] Events cleared'); // Clear existing events
       for (var doc in querySnapshot.docs) {
-        final event = doc.data() as Map<String, dynamic>;
+        final event = doc.data();
         final startDate = (event['startDate'] as Timestamp).toDate();
         log('[8] Adding event to _events map: ${event['eventName']} (startDate: $startDate)');
 
@@ -56,7 +56,7 @@ class _CalendarPageOrgState extends State<CalendarPageOrg> {
     log('[2] Building CalendarPageOrg widget...');
     return Scaffold(
       appBar: const CustomAppBar(title: 'Event Calendar'),
-      drawer: const CollapsibleSidebarOrganization(),
+      drawer: const CollapsibleSidebarGeneral(),
       body: Column(
         children: [
           TableCalendar(

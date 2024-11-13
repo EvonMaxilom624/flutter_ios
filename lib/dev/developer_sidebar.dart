@@ -5,18 +5,18 @@ import 'package:flutter_ios/app_details/faqs_page.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/forgot_pass.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
-import 'package:flutter_ios/calendars/calendar_admin.dart';
+import 'package:flutter_ios/calendars/calendar_dev.dart';
+import 'package:flutter_ios/dev/create_admin.dart';
+import 'package:flutter_ios/dev/developer_dashboard.dart';
+import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/user_admin/all_activities.dart';
-import 'package:flutter_ios/user_admin/approved_events.dart';
 import 'package:flutter_ios/user_admin/create_event.dart';
-import 'package:flutter_ios/user_admin/dashboard_admin.dart';
 import 'package:flutter_ios/user_admin/degree_program.dart';
-import 'package:flutter_ios/user_admin/for_approval.dart';
 import 'package:flutter_ios/user_admin/organization_list.dart';
 import 'package:flutter_ios/user_admin/profile.dart';
 
-class CollapsibleSidebarAdmin extends StatelessWidget {
-  const CollapsibleSidebarAdmin({super.key});
+class CollapsibleSidebarDeveloper extends StatelessWidget {
+  const CollapsibleSidebarDeveloper({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +25,13 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
       child: ListView(
         children: <Widget>[
           const DrawerHeader(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/osa.jpg'),
-                fit: BoxFit.cover,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/ioslogo.jpg'),
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-            child: null//Text('Admin'), // You can add child widgets here if needed
+              child: null//Text('Admin'), // You can add child widgets here if needed
           ),
           ListTile(
             leading: const Icon(Icons.dashboard, color: Colors.lightGreen,),
@@ -40,7 +40,7 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AdminDashboard()),
+                MaterialPageRoute(builder: (context) => const DevBoard()),
               );
             },
           ),
@@ -83,16 +83,16 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
             title: const Text('Organizations'),
             children: <Widget>[
               ListTile(
-                leading: const Icon(Icons.list),
-                title: const Text('Organization List'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const OrganizationList()
-                    ),
-                  );
-                }
+                  leading: const Icon(Icons.list),
+                  title: const Text('Organization List'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const OrganizationList()
+                      ),
+                    );
+                  }
               ),
               ListTile(
                   leading: const Icon(Icons.list),
@@ -128,10 +128,7 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                 title: const Text('For Approval'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ForApprovalPage()),
-                  );
+                  // TODO Navigate to the For Approval page
                 },
               ),
               ListTile(
@@ -139,10 +136,7 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                 title: const Text('Approved Activities'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ApprovedEventsPage()),
-                  );
+                  // TODO Navigate to the Approved Activities page
                 },
               ),
               ListTile(
@@ -153,13 +147,14 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const CalendarPageAdmin()),
+                        builder: (context) => const CalendarPageDev()
+                    ),
                   );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.local_activity_outlined),
-                title: const Text('All Activities Summary'),
+                title: const Text('All Activities'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -171,6 +166,19 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                 },
               ),
             ],
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_add_alt),
+            title: const Text('Create New Admin'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const AdminSignupScreen()
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.person),
@@ -185,15 +193,16 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
               );
             },
           ),
+
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Logout'),
             onTap: () async {
               await auth.signout(context);
               Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,);
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,);
             },
           ),
           const Divider(),
