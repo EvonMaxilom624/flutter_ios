@@ -4,8 +4,9 @@ import 'package:flutter_ios/app_details/contact_page.dart';
 import 'package:flutter_ios/app_details/faqs_page.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
-import 'package:flutter_ios/calendar.dart';
+import 'package:flutter_ios/user_admin/calendar_admin.dart';
 import 'package:flutter_ios/user_organization/announcements.dart';
+import 'package:flutter_ios/user_organization/calendar_org.dart';
 import 'package:flutter_ios/user_organization/dashboard_org.dart';
 import 'package:flutter_ios/user_organization/event_status.dart';
 import 'package:flutter_ios/user_organization/profile.dart';
@@ -83,7 +84,7 @@ class CollapsibleSidebarOrganization extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CalendarPage()),
+                    MaterialPageRoute(builder: (context) => const CalendarPageOrg()),
                   );
                 },
               ),

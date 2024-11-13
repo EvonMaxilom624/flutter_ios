@@ -4,8 +4,9 @@ import 'package:flutter_ios/app_details/contact_page.dart';
 import 'package:flutter_ios/app_details/faqs_page.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
-import 'package:flutter_ios/calendar.dart';
+import 'package:flutter_ios/user_admin/calendar_admin.dart';
 import 'package:flutter_ios/user_general/announcements_get.dart';
+import 'package:flutter_ios/user_general/calendar_general.dart';
 import 'package:flutter_ios/user_general/dashboard_general.dart';
 import 'package:flutter_ios/user_general/profile.dart';
 
@@ -47,7 +48,7 @@ class CollapsibleSidebarGeneral extends StatelessWidget {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CalendarPage()),
+                    MaterialPageRoute(builder: (context) => const CalendarPageGeneral()),
                   );
                 },
               ),

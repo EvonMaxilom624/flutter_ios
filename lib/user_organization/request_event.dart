@@ -35,8 +35,6 @@ class RequestEventPageState extends State<RequestEventPage> {
   bool _isButtonDisabled = false; // Flag to track button state
   final int _disableDuration = 5;
 
-
-
   Future<void> _selectDateTimeRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
@@ -51,8 +49,9 @@ class RequestEventPageState extends State<RequestEventPage> {
   }
 
   Future<void> _pickSarfFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result != null) {
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.any, allowMultiple: false);
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
         _sarfFile = result.files.first;
       });
@@ -60,8 +59,9 @@ class RequestEventPageState extends State<RequestEventPage> {
   }
 
   Future<void> _pickRequestLetterFile() async {
-    final result = await FilePicker.platform.pickFiles();
-    if (result != null) {
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.any, allowMultiple: false);
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
         _requestLetterFile = result.files.first;
       });
@@ -83,7 +83,10 @@ class RequestEventPageState extends State<RequestEventPage> {
 
   Future<int> _getNextEventId() async {
     final eventsCollection = FirebaseFirestore.instance.collection('Events');
-    final querySnapshot = await eventsCollection.orderBy('eventId', descending: true).limit(1).get();
+    final querySnapshot = await eventsCollection
+        .orderBy('eventId', descending: true)
+        .limit(1)
+        .get();
 
     if (querySnapshot.docs.isNotEmpty) {
       final lastEvent = querySnapshot.docs.first.data();
@@ -100,7 +103,7 @@ class RequestEventPageState extends State<RequestEventPage> {
         _requestLetterFile != null &&
         _userId != null) {
       setState(() {
-        _isButtonDisabled = true; // Disable the button
+        _isButtonDisabled = true;
       });
       try {
         // Check if an event with the same details already exists
@@ -125,24 +128,36 @@ class RequestEventPageState extends State<RequestEventPage> {
           return;
         }
 
-        // Get the next event ID
-        final nextEventId = await _getNextEventId();
-
-        // Event doesn't exist, proceed with submission
         final storage = FirebaseStorage.instance;
-        final sarfFileRef = storage
-            .ref()
-            .child('event_files/${nextEventId}_sarf'); // Use event ID in file name
-        final requestLetterFileRef = storage
-            .ref()
-            .child('event_files/${nextEventId}_request'); // Use event ID in file name
+        final nextEventId = await _getNextEventId();
+        final sarfFileRef =
+            storage.ref().child('event_files/${nextEventId}_sarf');
+        final requestLetterFileRef =
+            storage.ref().child('event_files/${nextEventId}_request');
 
-        await sarfFileRef.putFile(File(_sarfFile!.path!));
-        await requestLetterFileRef.putFile(File(_requestLetterFile!.path!));
+        // Upload files using fileBytes
+        if (_sarfFile != null) {
+          await sarfFileRef.putData(_sarfFile!.bytes!).catchError((error) {
+            // Handle file upload error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading SARF file: ${error.toString()}')),
+            );
+            throw error;
+          });
+        }
+        if (_requestLetterFile != null) {
+          await requestLetterFileRef.putData(_requestLetterFile!.bytes!).catchError((error) {
+            // Handle file upload error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error uploading Request Letter: ${error.toString()}')),
+            );
+            throw error;
+          });
+        }
 
         final sarfFileUrl = await sarfFileRef.getDownloadURL();
-        final requestLetterFileUrl = await requestLetterFileRef.getDownloadURL();
-
+        final requestLetterFileUrl =
+            await requestLetterFileRef.getDownloadURL();
 
         await FirebaseFirestore.instance.collection('Events').add({
           'eventName': _eventNameController.text,
@@ -164,6 +179,9 @@ class RequestEventPageState extends State<RequestEventPage> {
           const SnackBar(
               content: Text('Event request submitted successfully!')),
         );
+
+        log('Saving startDate: ${_dateTimeRange!.start}');
+        log('Saving endDate: ${_dateTimeRange!.end}');
       } catch (e) {
         log('Error submitting event request: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,13 +193,13 @@ class RequestEventPageState extends State<RequestEventPage> {
           setState(() {
             _isButtonDisabled = false;
           });
-          Navigator.pushReplacement( // Use pushReplacement to prevent going back to the form
+          Navigator.pushReplacement(
+            // Use pushReplacement to prevent going back to the form
             context,
             MaterialPageRoute(builder: (context) => const EventStatusPage()),
           );
         });
       }
-
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -311,7 +329,9 @@ class RequestEventPageState extends State<RequestEventPage> {
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(
-                onPressed: _isButtonDisabled ? null : _submitForm, // Disable if _isButtonDisabled is true
+                onPressed: _isButtonDisabled
+                    ? null
+                    : _submitForm, // Disable if _isButtonDisabled is true
                 child: const Text('Submit Request'),
               ),
             ],

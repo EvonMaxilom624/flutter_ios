@@ -5,7 +5,7 @@ import 'package:flutter_ios/app_details/faqs_page.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/forgot_pass.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
-import 'package:flutter_ios/calendar.dart';
+import 'package:flutter_ios/user_admin/calendar_admin.dart';
 import 'package:flutter_ios/user_admin/all_activities.dart';
 import 'package:flutter_ios/user_admin/approved_events.dart';
 import 'package:flutter_ios/user_admin/create_event.dart';
@@ -153,7 +153,7 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const CalendarPage()),
+                        builder: (context) => const CalendarPageAdmin()),
                   );
                 },
               ),
