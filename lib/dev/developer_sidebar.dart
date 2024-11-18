@@ -6,7 +6,7 @@ import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/forgot_pass.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/calendars/calendar_dev.dart';
-import 'package:flutter_ios/dev/create_admin.dart';
+import 'package:flutter_ios/dev/new_admin.dart';
 import 'package:flutter_ios/dev/developer_dashboard.dart';
 import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/user_admin/all_activities.dart';

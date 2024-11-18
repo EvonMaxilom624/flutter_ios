@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/database_service.dart';
+import 'package:flutter_ios/sidebar/sidebar_admin.dart';
+import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
 import 'package:flutter_ios/widgets/button.dart';
 import 'package:flutter_ios/widgets/textfield.dart';
@@ -57,6 +59,10 @@ class _OrganizationSignupScreenState extends State<OrganizationSignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const CustomAppBar(
+        title: 'Organization Registration',
+      ),
+      drawer: const CollapsibleSidebarAdmin(),
       body: CustomBackground(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -144,23 +150,20 @@ class _OrganizationSignupScreenState extends State<OrganizationSignupScreen> {
     }
 
     try {
-      // Create the user in Firebase Authentication
-      await _signup();
+      // 1. Create user with Firebase Auth
+      await _auth.createUserWithEmailAndPassword(
+        _email.text,
+        _password.text,
+      );
 
-      // Get the current user's UID from Firebase Auth
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        throw Exception("Failed to retrieve user ID after signup.");
-      }
-
-      // Use the user's UID as the organization ID
-      String organizationId = userId;
+      // 2. Get the UID of the newly created user
+      String? uid = _auth.currentUser!.uid;
 
       // Organization data to be saved in Firestore
       final orgData = {
         'name': _orgName.text,
-        'program': _selectedProgram,
-        'organizationId': organizationId, // Save the UID as organizationId
+        'program': _selectedProgram, // Assuming you still want to store the program in the 'organizations' collection
+        'organizationId': uid,
       };
 
       // Organization user data
@@ -170,32 +173,27 @@ class _OrganizationSignupScreenState extends State<OrganizationSignupScreen> {
         phone: _phone.text,
         program: _selectedProgram!,
         userLevel: "organization_user",
-        organizationId: organizationId, // Assign the same UID as organizationId
+        organizationId: uid,
       );
 
       // Save the organization and user details in Firestore
       await _dbService.createOrg(orgData, user);
 
       // Save the organizationId to the user's document in Firestore
-      await _firestore.collection('users').doc(userId).set({
-        'organizationId': organizationId,
+      await _firestore.collection('users').doc(uid).set({
+        'organizationId': uid,
         'name': _orgName.text,
         'email': _email.text,
         'phone': _phone.text,
+        'user_level': "organization_user",
+        'program': _selectedProgram
       });
 
       Navigator.pop(context);
     } catch (e) {
       debugPrint("Signup failed: $e");
     }
-
-    // Send email verification after sign-up
     await _auth.sendEmailVerificationLink();
-  }
-
-
-  Future<void> _signup() async {
-    await _auth.createUserWithEmailAndPassword(_email.text, _password.text);
   }
 }
 
@@ -205,7 +203,7 @@ class OrgUser {
   final String phone;
   final String program;
   final String userLevel;
-  final String organizationId; // Add organizationId to the OrgUser class
+  final String organizationId;
 
   OrgUser({
     required this.name,
@@ -225,3 +223,4 @@ class OrgUser {
     'organizationId': organizationId,
   };
 }
+

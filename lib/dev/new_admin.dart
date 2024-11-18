@@ -117,8 +117,8 @@ class _SignupScreenState extends State<AdminSignupScreen> {
                     Navigator.pop(context);
                   } catch (e) {
                     debugPrint("Signup failed: $e");
-                    // Handle signup errors, perhaps show a user-friendly message
                   }
+                  await _auth.sendEmailVerificationLink();
                 },
               ),
 

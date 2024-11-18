@@ -1,10 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/user_admin/new_organization.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_ios/user_admin/edit_organization.dart'; // Import the new screen
+import 'dart:developer'; // For logging
 
 class OrganizationList extends StatefulWidget {
   const OrganizationList({super.key});
@@ -16,30 +17,32 @@ class OrganizationList extends StatefulWidget {
 class OrganizationListPageState extends State<OrganizationList> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Get organizations from 'organizations' collection directly
   Stream<List<Organization>> _getOrganizations() {
     return _firestore
-        .collection('users')
-        .where('user_level', isEqualTo: 'organization_user')
+        .collection('organizations')
         .snapshots()
-        .map((snapshot) =>
-        snapshot.docs.map((doc) => Organization.fromFirestore(doc)).toList());
+        .map((snapshot) => snapshot.docs
+        .map((doc) => Organization.fromFirestore(doc))
+        .toList());
   }
 
   Future<void> _deleteOrganization(String docId) async {
     try {
-
       // Delete documents from Firestore
       await _firestore.collection('users').doc(docId).delete();
       await _firestore.collection('organizations').doc(docId).delete();
-      //TODO add DELETE function for firebase authentication account
 
-    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting organization or user account: $e')),
+        const SnackBar(content: Text('Organization and user account deleted')),
+      );
+    } catch (e) {
+      log('Error deleting organization or user account: $e'); // Use log
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting organization: $e')),
       );
     }
   }
-
 
   void _confirmDelete(BuildContext context, String docId) {
     showDialog(
@@ -118,7 +121,7 @@ class OrganizationListPageState extends State<OrganizationList> {
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundImage:
-                            AssetImage(organizations[index].logoImagePath),
+                            NetworkImage(organizations[index].imageUrl),
                           ),
                           title: Text(organizations[index].name),
                           subtitle: Text(organizations[index].description),
@@ -129,7 +132,14 @@ class OrganizationListPageState extends State<OrganizationList> {
                                 tooltip: "Edit",
                                 icon: const Icon(Icons.edit),
                                 onPressed: () {
-                                  // TODO: Implement edit functionality
+                                  // Navigate to the EditOrganization screen
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EditOrganizationScreen(
+                                          organization: organizations[index]),
+                                    ),
+                                  );
                                 },
                               ),
                               IconButton(
@@ -161,13 +171,14 @@ class OrganizationListPageState extends State<OrganizationList> {
 
 class Organization {
   final String name;
-  final String logoImagePath;
+  final String imageUrl;
   final String description;
   final String docId;
+  // Removed the program property
 
   Organization({
     required this.name,
-    required this.logoImagePath,
+    required this.imageUrl,
     required this.description,
     required this.docId,
   });
@@ -176,9 +187,9 @@ class Organization {
     final data = doc.data() as Map<String, dynamic>;
     return Organization(
       name: data['name'] ?? 'No Name',
-      logoImagePath: 'assets/default_logo.jpg', // Default logo path
-      description: data['program'] ?? 'No Description',
-      docId: doc.id, // Add document ID for deletion
+      imageUrl: data['imageUrl'] ?? '', // Default logo path
+      description: data['description'] ?? 'No Description',
+      docId: doc.id,
     );
   }
 }

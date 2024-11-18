@@ -2,7 +2,7 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/auth/signup_screen.dart';
-import 'package:flutter_ios/dev/create_admin.dart';
+import 'package:flutter_ios/dev/new_admin.dart';
 import 'package:flutter_ios/user_admin/new_organization.dart';
 
 class DatabaseService {
