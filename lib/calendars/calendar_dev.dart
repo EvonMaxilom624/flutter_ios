@@ -2,7 +2,7 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/dev/developer_sidebar.dart';
+import 'package:flutter_ios/sidebar/sidebar_developer.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';

@@ -6,6 +6,8 @@ import 'package:flutter_ios/sidebar/sidebar_org.dart';
 import 'package:flutter_ios/user_organization/profile_edit.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // Add this import for Firebase Storage
+
 
 class OrgProfilePage extends StatefulWidget {
   const OrgProfilePage({super.key});

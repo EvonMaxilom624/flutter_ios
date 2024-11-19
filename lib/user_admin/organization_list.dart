@@ -124,7 +124,7 @@ class OrganizationListPageState extends State<OrganizationList> {
                             NetworkImage(organizations[index].imageUrl),
                           ),
                           title: Text(organizations[index].name),
-                          subtitle: Text(organizations[index].description),
+                          subtitle: Text(organizations[index].program),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
@@ -172,14 +172,14 @@ class OrganizationListPageState extends State<OrganizationList> {
 class Organization {
   final String name;
   final String imageUrl;
-  final String description;
+  final String program;
   final String docId;
   // Removed the program property
 
   Organization({
     required this.name,
     required this.imageUrl,
-    required this.description,
+    required this.program,
     required this.docId,
   });
 
@@ -188,7 +188,7 @@ class Organization {
     return Organization(
       name: data['name'] ?? 'No Name',
       imageUrl: data['imageUrl'] ?? '', // Default logo path
-      description: data['description'] ?? 'No Description',
+      program: data['program'] ?? 'No program',
       docId: doc.id,
     );
   }

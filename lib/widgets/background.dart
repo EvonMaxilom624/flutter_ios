@@ -32,7 +32,7 @@ class _CustomBackgroundState extends State<CustomBackground> {
       final storageRef =
       FirebaseStorage.instance.ref().child(widget.backgroundImage);
       final downloadUrl = await storageRef.getDownloadURL();
-      log('Download URL: $downloadUrl'); // Log the download URL for debugging
+      log('Download URL: $downloadUrl');
 
       setState(() {
         _backgroundImageProvider = NetworkImage(downloadUrl);

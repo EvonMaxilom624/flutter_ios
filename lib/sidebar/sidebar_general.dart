@@ -89,12 +89,8 @@ class CollapsibleSidebarGeneral extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Logout'),
-            onTap: () async {
-              await auth.signout(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    (route) => false,);
+            onTap: () {
+              auth.showLogoutConfirmationDialog(context, auth); // Call the function from auth_functions.dart
             },
           ),
           const Divider(),

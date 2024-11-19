@@ -7,7 +7,7 @@ import 'package:flutter_ios/auth/forgot_pass.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/calendars/calendar_dev.dart';
 import 'package:flutter_ios/dev/new_admin.dart';
-import 'package:flutter_ios/dev/developer_dashboard.dart';
+import 'package:flutter_ios/dev/dashboard_developer.dart';
 import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/user_admin/all_activities.dart';
 import 'package:flutter_ios/user_admin/create_event.dart';
@@ -197,12 +197,8 @@ class CollapsibleSidebarDeveloper extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Logout'),
-            onTap: () async {
-              await auth.signout(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    (route) => false,);
+            onTap: () {
+              auth.showLogoutConfirmationDialog(context, auth); // Call the function from auth_functions.dart
             },
           ),
           const Divider(),

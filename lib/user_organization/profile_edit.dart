@@ -34,10 +34,14 @@ class _OrgProfileEditPageState extends State<OrgProfileEditPage> {
   XFile? _imageFile;
   String? _updatedImageUrl;
 
+  TextEditingController _nameController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _initializeControllers();
+    _nameController.text = widget.name;  // Initialize the name controller with the current name
+
   }
 
   void _initializeControllers() {
@@ -78,6 +82,7 @@ class _OrgProfileEditPageState extends State<OrgProfileEditPage> {
           .collection('organizations')
           .doc(widget.organizationId)
           .update({
+        'name': _nameController.text,  // Save the new name to Firestore
         'positions': newPositions,
         'imageUrl': _updatedImageUrl ?? widget.imageUrl,
       });
@@ -169,10 +174,14 @@ class _OrgProfileEditPageState extends State<OrgProfileEditPage> {
                 ),
               ),
               const SizedBox(height: 8.0),
-              Text(
-                widget.name,
-                style: const TextStyle(fontSize: 19.0),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Organization Name',
+                  hintText: 'Enter new organization name',
+                ),
               ),
+
               const SizedBox(height: 10.0),
               const Divider(),
               const Text(

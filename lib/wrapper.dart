@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/auth/login_screen.dart';
 import 'package:flutter_ios/auth/verification_screen.dart';
-import 'package:flutter_ios/dev/developer_dashboard.dart';
+import 'package:flutter_ios/dev/dashboard_developer.dart';
 import 'package:flutter_ios/user_admin/dashboard_admin.dart';
 import 'package:flutter_ios/user_general/dashboard_general.dart';
 import 'package:flutter_ios/user_organization/dashboard_org.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/dev/developer_sidebar.dart';
+import 'package:flutter_ios/sidebar/sidebar_developer.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
 

@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_ios/auth/login_screen.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
@@ -56,12 +57,49 @@ class AuthService {
     }
   }
 
-  // Sign out user
-  Future<void> signout(BuildContext context) async {
+  Future<void> showLogoutConfirmationDialog(BuildContext context, AuthService auth) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap a button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+            ),
+            TextButton(
+              child: const Text('Logout'),
+              onPressed: () async {
+                Navigator.of(context).pop(); // Dismiss the dialog first
+                await signout(context,auth); // Then perform logout
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Future<void> signout(BuildContext context, AuthService auth) async {
     try {
       await _auth.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logged out successfully!')),
+      );
     } catch (e) {
-      log("[Auth] Something went wrong on signout: ${e.toString()}");
+      // Handle any errors during logout
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logout failed: $e')),
+      );
     }
   }
 
