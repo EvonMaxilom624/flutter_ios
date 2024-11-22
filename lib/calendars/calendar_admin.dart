@@ -197,23 +197,64 @@ class _CalendarPageAdminState extends State<CalendarPageAdmin> {
 }
 
 // Event Details Page (You'll need to create this)
-class EventDetailsPage extends StatelessWidget {
+
+class EventDetailsPage extends StatefulWidget {
   final Map<String, dynamic> event;
 
   const EventDetailsPage({super.key, required this.event});
 
   @override
+  State<EventDetailsPage> createState() => _EventDetailsPageState();
+}
+
+class _EventDetailsPageState extends State<EventDetailsPage> {
+  String? organizationName;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOrganizationName();
+  }
+
+  Future<void> _fetchOrganizationName() async {
+    try {
+      final orgDoc = await FirebaseFirestore.instance
+          .collection('organizations')
+          .where('organizationId', isEqualTo: widget.event['requesterId'])
+          .limit(1) // Limit to one document to avoid unnecessary fetching
+          .get();
+
+      if (orgDoc.docs.isNotEmpty) {
+        setState(() {
+          organizationName = orgDoc.docs.first.get('name');
+        });
+      } else {
+        setState(() {
+          organizationName = 'Organization not found';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        organizationName = 'Error fetching organization';
+      });
+      log('Error fetching organization name: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(event['eventName'])),
+      appBar: AppBar(title: Text(widget.event['eventName'])),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Event Name: ${event['eventName']}'),
-            Text('Start Date: ${DateFormat('MMM dd, yyyy').format((event['startDate'] as Timestamp).toDate())}'),
-            Text('End Date: ${DateFormat('MMM dd, yyyy').format((event['endDate'] as Timestamp).toDate())}'),
-            Text('Venue: ${event['venue']}'),
+            Text('Event Name: ${widget.event['eventName']}'),
+            if (organizationName != null)
+              Text('Requested by: $organizationName'),
+            Text('Start Date: ${DateFormat('MMM dd, yyyy').format((widget.event['startDate'] as Timestamp).toDate())}'),
+            Text('End Date: ${DateFormat('MMM dd, yyyy').format((widget.event['endDate'] as Timestamp).toDate())}'),
+            Text('Venue: ${widget.event['venue']}'),
             // Add more details as needed
           ],
         ),

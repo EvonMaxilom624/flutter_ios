@@ -1,11 +1,16 @@
 import 'dart:developer';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_ios/auth/auth_service.dart';
+import 'package:flutter_ios/calendars/calendar_admin.dart';
+import 'package:flutter_ios/sidebar/sidebar_org.dart';
+import 'package:flutter_ios/user_organization/event_status.dart';
+import 'package:flutter_ios/widgets/appbar.dart';
+import 'dart:io';
+import 'dart:async';
 
 class CreateEventPage extends StatefulWidget {
   const CreateEventPage({super.key});
@@ -15,161 +20,295 @@ class CreateEventPage extends StatefulWidget {
 }
 
 class CreateEventPageState extends State<CreateEventPage> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _personsController = TextEditingController();
-  File? _imageFile;
-  String? _filePath; // Used to store file path for desktop platforms
-  final picker = ImagePicker();
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _eventNameController = TextEditingController();
+  final TextEditingController _venueController = TextEditingController();
+  final TextEditingController _participantsController = TextEditingController();
+  final TextEditingController _budgetSourceController = TextEditingController();
+  final TextEditingController _budgetAmountController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
 
-  Future<void> _pickImage() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png'], // Specify allowed image formats
-      );
+  DateTimeRange? _dateTimeRange;
+  PlatformFile? _sarfFile;
+  PlatformFile? _requestLetterFile;
+  Timer? _debounceTimer;
+  String? _userId;
+  bool _isButtonDisabled = false; // Flag to track button state
+  final int _disableDuration = 5;
+
+  Future<void> _selectDateTimeRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && picked != _dateTimeRange) {
       setState(() {
-        if (result != null) {
-          if (Platform.isAndroid || Platform.isIOS) {
-            // For mobile platforms, use ImagePicker
-            _imageFile = File(result.files.single.path!);
-          } else {
-            // For desktop platforms, store file path
-            _filePath = result.files.single.path!;
-          }
-        }
+        _dateTimeRange = picked;
       });
-    } catch (e) {
-      log('Error picking image: $e');
-      _showErrorSnackBar('Error picking image: $e');
     }
   }
 
-  Future<void> _uploadEvent(BuildContext context) async {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _pickSarfFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _sarfFile = result.files.first;
+      });
+    }
+  }
+
+  Future<void> _pickRequestLetterFile() async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _requestLetterFile = result.files.first;
+      });
+    }
+  }
+
+  void _submitForm() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _performSubmission();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _userId = AuthService().currentUser?.uid; // Get the user ID
+  }
+
+  Future<int> _getNextEventId() async {
+    final eventsCollection = FirebaseFirestore.instance.collection('Events');
+    final querySnapshot = await eventsCollection.orderBy('eventId', descending: true).limit(1).get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final lastEvent = querySnapshot.docs.first.data();
+      return (lastEvent['eventId'] as int) + 1;
+    } else {
+      return 100000; // Starting ID
+    }
+  }
+
+  Future<void> _performSubmission() async {
+    if (_formKey.currentState!.validate() &&
+        _dateTimeRange != null &&
+        _sarfFile != null &&
+        _requestLetterFile != null &&
+        _userId != null) {
+      setState(() {
+        _isButtonDisabled = true; // Disable the button
+      });
       try {
-        String imageUrl = await _uploadImage();
+        // Check if an event with the same details already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('Events')
+            .where('eventName', isEqualTo: _eventNameController.text)
+            .where('startDate', isEqualTo: _dateTimeRange!.start)
+            .where('endDate', isEqualTo: _dateTimeRange!.end)
+            .where('venue', isEqualTo: _venueController.text)
+            .where('participants', isEqualTo: _participantsController.text)
+            .where('budgetSource', isEqualTo: _budgetSourceController.text)
+            .where('budgetAmount', isEqualTo: _budgetAmountController.text)
+            .where('description', isEqualTo: _descriptionController.text)
+            .get();
 
-        await _addEventData(imageUrl);
+        if (querySnapshot.docs.isNotEmpty) {
+          // Event already exists
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('An event with these details already exists.')),
+          );
+          return;
+        }
 
-        Navigator.pop(context); // Navigate back after successful upload
+        // Get the next event ID
+        final nextEventId = await _getNextEventId();
+        // Event doesn't exist, proceed with submission
+        final storage = FirebaseStorage.instance;
+        final sarfFileRef = storage
+            .ref()
+            .child('event_files/${nextEventId}_sarf'); // Use event ID in file name
+        final requestLetterFileRef = storage
+            .ref()
+            .child('event_files/${nextEventId}_request'); // Use event ID in file name
+
+        await sarfFileRef.putFile(File(_sarfFile!.path!));
+        await requestLetterFileRef.putFile(File(_requestLetterFile!.path!));
+
+        final sarfFileUrl = await sarfFileRef.getDownloadURL();
+        final requestLetterFileUrl = await requestLetterFileRef.getDownloadURL();
+
+        await FirebaseFirestore.instance.collection('Events').add({
+          'eventName': _eventNameController.text,
+          'startDate': _dateTimeRange!.start,
+          'endDate': _dateTimeRange!.end,
+          'venue': _venueController.text,
+          'participants': _participantsController.text,
+          'budgetSource': _budgetSourceController.text,
+          'budgetAmount': double.parse(_budgetAmountController.text),
+          'description': _descriptionController.text,
+          'sarfFileUrl': sarfFileUrl,
+          'requestLetterFileUrl': requestLetterFileUrl,
+          'status': 'approved',
+          'requesterId': _userId,
+          'eventId': nextEventId,
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Event created successfully!')),
+        );
       } catch (e) {
-        log('Error uploading event: $e');
-        _showErrorSnackBar('Error uploading event: $e');
+        log('Error making event: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create event.')),
+        );
+      } finally {
+        // Re-enable the button after the specified duration
+        Timer(Duration(seconds: _disableDuration), () {
+          setState(() {
+            _isButtonDisabled = false;
+          });
+          Navigator.pushReplacement( // Use pushReplacement to prevent going back to the form
+            context,
+            MaterialPageRoute(builder: (context) => const CalendarPageAdmin()),
+          );
+        });
       }
     } else {
-      _showErrorSnackBar('Please fill all fields');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please fill in all fields and upload files.')),
+      );
     }
-  }
-
-  Future<String> _uploadImage() async {
-    try {
-      String filePath = _imageFile != null ? _imageFile!.path : _filePath!;
-      String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference ref = FirebaseStorage.instance.ref().child('event_images/$fileName');
-      UploadTask uploadTask = ref.putFile(File(filePath));
-      TaskSnapshot snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      log('Error uploading image: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> _addEventData(String imageUrl) async {
-    try {
-      await Firebase.initializeApp(); // Initialize Firebase if not initialized
-      CollectionReference events = FirebaseFirestore.instance.collection('events');
-      await events.add({
-        'title': _titleController.text,
-        'content': _contentController.text,
-        'personsAttending': int.tryParse(_personsController.text) ?? 0,
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      log('Error adding event data: $e');
-      rethrow;
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Event'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: () => _uploadEvent(context),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
+      appBar: const CustomAppBar(title: 'Create Event'),
+      drawer: const CollapsibleSidebarOrganization(),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: <Widget>[
               TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
+                controller: _eventNameController,
+                decoration: const InputDecoration(
+                  labelText: 'What',
+                  hintText: 'Event Name',
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
+                    return 'Please enter the event name';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 20.0),
+              ListTile(
+                title: Text(_dateTimeRange == null
+                    ? 'When'
+                    : '${_dateTimeRange!.start.toLocal()} - ${_dateTimeRange!.end.toLocal()}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () => _selectDateTimeRange(context),
+              ),
               TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(labelText: 'Content'),
+                controller: _venueController,
+                decoration: const InputDecoration(
+                  labelText: 'Where',
+                  hintText: 'Venue',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the venue';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _participantsController,
+                decoration: const InputDecoration(
+                  labelText: 'Who',
+                  hintText: 'Participants',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter the participants';
+                  }
+                  return null;
+                },
+              ),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextFormField(
+                      controller: _budgetSourceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Budget',
+                        hintText: 'Budget Source',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the budget source';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16.0),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _budgetAmountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the budget amount';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                ),
                 maxLines: 3,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter event content';
+                    return 'Please enter the description';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 20.0),
-              TextFormField(
-                controller: _personsController,
-                decoration: const InputDecoration(labelText: 'Persons Attending'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter number of persons attending';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
+              const SizedBox(height: 16.0),
+              ListTile(
+                title:
+                Text(_sarfFile == null ? 'Upload SARF' : _sarfFile!.name),
+                trailing: const Icon(Icons.attach_file),
+                onTap: _pickSarfFile,
               ),
-              const SizedBox(height: 20.0),
-              _imageFile != null || _filePath != null
-                  ? Image.file(_imageFile ?? File(_filePath!))
-                  : InkWell(
-                onTap: _pickImage,
-                child: Container(
-                  width: double.infinity,
-                  height: 200.0,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.add_a_photo, size: 50.0),
-                ),
+              ListTile(
+                title: Text(_requestLetterFile == null
+                    ? 'Upload Request Letter'
+                    : _requestLetterFile!.name),
+                trailing: const Icon(Icons.attach_file),
+                onTap: _pickRequestLetterFile,
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: _isButtonDisabled ? null : _submitForm, // Disable if _isButtonDisabled is true
+                child: const Text('Post Event'),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ios/sidebar/sidebar_admin.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
@@ -12,19 +13,13 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CustomAppBar(
+    return const Scaffold(
+      appBar: CustomAppBar(
         title: 'Dashboard',
       ),
-      drawer: const CollapsibleSidebarAdmin(),
-      body: const CustomBackground(
+      drawer: CollapsibleSidebarAdmin(),
+      body: CustomBackground(
         child: AdminContent(),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Admin control logic here
-        },
-        child: const Icon(Icons.admin_panel_settings),
       ),
     );
   }
@@ -39,30 +34,52 @@ class AdminContent extends StatelessWidget {
       children: <Widget>[
         Align(
           alignment: Alignment.topCenter,
-          child: CarouselSlider(
-            options: CarouselOptions(
-              height: 250.0,
-              autoPlay: true,
-              enlargeCenterPage: true,
-            ),
-            items: const [
-              // TODO: Replace hardcoded content with dynamic content
-              CarouselItem(image: AssetImage('assets/ioslogo.jpg')),
-              CarouselItem(image: AssetImage('assets/socitechlogo.jpg')),
-              CarouselItem(image: AssetImage('assets/entreple.jpg')),
-              CarouselItem(image: AssetImage('assets/psabe.jpg')),
-              CarouselItem(image: AssetImage('assets/pitching.jpg')),
-              CarouselItem(image: AssetImage('assets/osa.jpg')),
-            ],
+          child: FutureBuilder<List<Widget>>(
+            future: _fetchCarouselImages(context),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No images found.'));
+              } else {
+                return CarouselSlider(
+                  options: CarouselOptions(
+                    height: 250.0,
+                    autoPlay: true,
+                    enlargeCenterPage: true,
+                  ),
+                  items: snapshot.data!,
+                );
+              }
+            },
           ),
         ),
         const SizedBox(height: 20),
         const Center(child: Text('Admin Content')),
         const SizedBox(height: 20),
         const AnnouncementsView(),
-
       ],
     );
+  }
+
+  Future<List<Widget>> _fetchCarouselImages(BuildContext context) async {
+    try {
+      await Firebase.initializeApp();
+      final storage = FirebaseStorage.instance;
+      final storageRef = storage.ref().child('organization_images'); // Path in Storage
+      final ListResult result = await storageRef.listAll();
+      final List<Widget> carouselItems = await Future.wait(result.items.map((ref) async {
+        final String downloadURL = await ref.getDownloadURL();
+        return CarouselItem(image: NetworkImage(downloadURL));
+      }).toList());
+      return carouselItems;
+    } catch (e) {
+      // Handle errors appropriately, e.g., show an error message
+      debugPrint("Error fetching images: $e");
+      return [];
+    }
   }
 }
 
