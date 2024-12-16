@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_ios/sidebar/sidebar_admin.dart';
+import 'package:flutter_ios/dev/new_organization_dev.dart';
+import 'package:flutter_ios/sidebar/sidebar_developer.dart';
 import 'package:flutter_ios/user_admin/new_organization.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'package:flutter_ios/widgets/background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer'; // For logging
 
-class OrganizationList extends StatelessWidget {
+class DeveloperOrganizationList extends StatelessWidget {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Get organizations from Firestore
   Stream<List<Organization>> _getOrganizations() {
-    return _firestore.collection('organizations').snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => Organization.fromFirestore(doc)).toList());
+    return _firestore
+        .collection('organizations')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => Organization.fromFirestore(doc))
+        .toList());
   }
 
   @override
@@ -21,7 +26,7 @@ class OrganizationList extends StatelessWidget {
       appBar: const CustomAppBar(
         title: 'Developer Organization List',
       ),
-      drawer: const CollapsibleSidebarAdmin(), // Developer-specific drawer
+      drawer: const CollapsibleSidebarDeveloper(),  // Developer-specific drawer
       body: CustomBackground(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -36,8 +41,7 @@ class OrganizationList extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const OrganizationSignupScreen(),
+                          builder: (context) => const OrganizationSignupScreenDev(),
                         ),
                       );
                     },
@@ -70,7 +74,7 @@ class OrganizationList extends StatelessWidget {
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundImage:
-                                NetworkImage(organizations[index].imageUrl),
+                            NetworkImage(organizations[index].imageUrl),
                           ),
                           title: Text(organizations[index].name),
                           subtitle: Text(organizations[index].program),

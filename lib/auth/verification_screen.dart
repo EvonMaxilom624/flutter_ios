@@ -40,7 +40,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
           Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const OrganizationList(),
+                builder: (context) => OrganizationList(),
               ));
         }
       }

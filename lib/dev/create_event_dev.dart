@@ -7,20 +7,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ios/auth/auth_service.dart';
 import 'package:flutter_ios/calendars/calendar_admin.dart';
 import 'package:flutter_ios/sidebar/sidebar_admin.dart';
+import 'package:flutter_ios/sidebar/sidebar_developer.dart';
 import 'package:flutter_ios/sidebar/sidebar_org.dart';
 import 'package:flutter_ios/user_organization/event_status.dart';
 import 'package:flutter_ios/widgets/appbar.dart';
 import 'dart:io';
 import 'dart:async';
 
-class CreateEventPage extends StatefulWidget {
-  const CreateEventPage({super.key});
+class CreateEventPageDev extends StatefulWidget {
+  const CreateEventPageDev({super.key});
 
   @override
-  State<CreateEventPage> createState() => CreateEventPageState();
+  State<CreateEventPageDev> createState() => CreateEventPageDevState();
 }
 
-class CreateEventPageState extends State<CreateEventPage> {
+class CreateEventPageDevState extends State<CreateEventPageDev> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _eventNameController = TextEditingController();
   final TextEditingController _venueController = TextEditingController();
@@ -191,7 +192,7 @@ class CreateEventPageState extends State<CreateEventPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CustomAppBar(title: 'Create Event'),
-      drawer: const CollapsibleSidebarAdmin(),
+      drawer: const CollapsibleSidebarDeveloper(),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(

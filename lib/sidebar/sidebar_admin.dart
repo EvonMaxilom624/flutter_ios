@@ -88,7 +88,7 @@ class CollapsibleSidebarAdmin extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const OrganizationList()
+                        builder: (context) => OrganizationList()
                     ),
                   );
                 }
